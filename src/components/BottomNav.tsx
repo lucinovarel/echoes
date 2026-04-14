@@ -63,7 +63,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-50"
+      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl z-50"
       style={{ background: "var(--surface)", borderTop: "1px solid var(--border)" }}
     >
       <div className="flex items-center justify-around pb-safe pt-2">

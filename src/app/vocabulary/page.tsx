@@ -26,6 +26,25 @@ export default function VocabularyPage() {
     setLoading(false);
   }
 
+  function handleExport() {
+    const data = JSON.stringify(
+      words.map(({ word, phonetic, meaning, translation, example, tags }) => ({
+        word, phonetic, meaning, translation, example, tags,
+      })),
+      null,
+      2
+    );
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `echoes-vocab-${new Date().toISOString().split("T")[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   async function handleDelete(id: string) {
     await deleteWord(id);
     setWords((prev) => prev.filter((w) => w.id !== id));

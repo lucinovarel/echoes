@@ -183,7 +183,7 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Link href="/quiz">
             <div
               className="rounded-2xl p-4 flex flex-col items-center gap-2"
@@ -193,10 +193,10 @@ export default function HomePage() {
               }}
             >
               <span className="text-3xl">⚡</span>
-              <span className="text-sm font-semibold" style={{ color: "#22d3ee" }}>Quick Quiz</span>
+              <span className="text-xs font-semibold text-center" style={{ color: "#22d3ee" }}>Quick Quiz</span>
             </div>
           </Link>
-          <Link href="/vocabulary">
+          <Link href="/recall">
             <div
               className="rounded-2xl p-4 flex flex-col items-center gap-2"
               style={{
@@ -204,8 +204,20 @@ export default function HomePage() {
                 border: "1px solid rgba(16,185,129,0.3)",
               }}
             >
+              <span className="text-3xl">🧠</span>
+              <span className="text-xs font-semibold text-center" style={{ color: "#34d399" }}>Word Recall</span>
+            </div>
+          </Link>
+          <Link href="/vocabulary">
+            <div
+              className="rounded-2xl p-4 flex flex-col items-center gap-2"
+              style={{
+                background: "rgba(124,58,237,0.08)",
+                border: "1px solid rgba(124,58,237,0.3)",
+              }}
+            >
               <span className="text-3xl">📖</span>
-              <span className="text-sm font-semibold" style={{ color: "#34d399" }}>My Words</span>
+              <span className="text-xs font-semibold text-center" style={{ color: "#a78bfa" }}>My Words</span>
             </div>
           </Link>
         </div>
