@@ -1,65 +1,244 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useGameStore } from "@/store/gameStore";
+import { getXPForNextLevel } from "@/lib/achievements";
+import BottomNav from "@/components/BottomNav";
+import { getAllWords, addWords, getDueWords } from "@/lib/db";
+import { SEED_WORDS } from "@/lib/seedData";
+import { VocabWord } from "@/lib/types";
+
+export default function HomePage() {
+  const {
+    xp, level, streak, totalReviewed, totalCorrect,
+    dailyGoal, dailyProgress, dailyDate, achievements, checkStreak,
+  } = useGameStore();
+  const [wordCount, setWordCount] = useState(0);
+  const [dueCount, setDueCount] = useState(0);
+  const { currentLevelXP, nextLevelXP, progress } = getXPForNextLevel(xp);
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const currentDaily = dailyDate === todayStr ? dailyProgress : 0;
+  const dailyPct = Math.min((currentDaily / dailyGoal) * 100, 100);
+  const accuracy = totalReviewed > 0 ? Math.round((totalCorrect / totalReviewed) * 100) : 0;
+
+  useEffect(() => {
+    checkStreak();
+    loadStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadStats() {
+    const all: VocabWord[] = await getAllWords();
+    if (all.length === 0) {
+      await addWords(SEED_WORDS);
+      setWordCount(SEED_WORDS.length);
+      setDueCount(SEED_WORDS.length);
+    } else {
+      setWordCount(all.length);
+      const due = await getDueWords();
+      setDueCount(due.length);
+    }
+  }
+
+  const stats = [
+    { label: "Words", value: wordCount, icon: "📚" },
+    { label: "Due", value: dueCount, icon: "⏰" },
+    { label: "Reviewed", value: totalReviewed, icon: "✅" },
+    { label: "Accuracy", value: `${accuracy}%`, icon: "🎯" },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="min-h-dvh pb-28" style={{ background: "var(--bg)" }}>
+      {/* Header */}
+      <div className="px-4 pt-safe pt-6 pb-2">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Echoes</h1>
+            <p className="text-sm" style={{ color: "var(--muted)" }}>Your vocab journey</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {streak > 0 && (
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full streak-glow"
+                style={{
+                  background: "rgba(245,158,11,0.1)",
+                  border: "1px solid rgba(245,158,11,0.4)",
+                }}
+              >
+                <span>🔥</span>
+                <span className="font-bold text-amber-400 text-sm">{streak}</span>
+              </div>
+            )}
+            <div
+              className="px-3 py-1.5 rounded-full text-sm font-bold"
+              style={{
+                background: "linear-gradient(135deg, rgba(124,58,237,0.25), rgba(6,182,212,0.15))",
+                border: "1px solid rgba(124,58,237,0.4)",
+                color: "#a78bfa",
+              }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              LV {level}
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        {/* XP Bar */}
+        <div className="mb-1">
+          <div className="flex justify-between text-xs mb-1" style={{ color: "var(--muted)" }}>
+            <span>{currentLevelXP} / {nextLevelXP} XP</span>
+            <span style={{ color: "var(--gold)" }}>⚡ {xp} total</span>
+          </div>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${progress * 100}%`,
+                background: "linear-gradient(90deg, #7c3aed, #06b6d4)",
+              }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
         </div>
-      </main>
+      </div>
+
+      {/* Daily Goal */}
+      <div className="px-4 mb-4">
+        <div
+          className="rounded-2xl p-4"
+          style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold text-white">Daily Goal</span>
+            <span className="text-sm font-medium" style={{ color: currentDaily >= dailyGoal ? "#10b981" : "var(--muted)" }}>
+              {currentDaily} / {dailyGoal}{currentDaily >= dailyGoal ? " 🎉" : ""}
+            </span>
+          </div>
+          <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${dailyPct}%`,
+                background: dailyPct >= 100
+                  ? "linear-gradient(90deg, #10b981, #059669)"
+                  : "linear-gradient(90deg, #7c3aed, #a855f7)",
+              }}
+            />
+          </div>
+          <div className="flex gap-1 mt-2">
+            {Array.from({ length: Math.min(dailyGoal, 20) }).map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 h-1 rounded-full transition-all duration-300"
+                style={{ background: i < currentDaily ? "#a78bfa" : "var(--border)" }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="px-4 grid grid-cols-4 gap-2 mb-4">
+        {stats.map((s) => (
+          <div
+            key={s.label}
+            className="rounded-xl p-3 flex flex-col items-center"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+          >
+            <div className="text-xl mb-1">{s.icon}</div>
+            <div className="text-base font-bold text-white leading-tight">{s.value}</div>
+            <div className="text-[10px]" style={{ color: "var(--muted)" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* CTA Buttons */}
+      <div className="px-4 flex flex-col gap-3 mb-4">
+        {dueCount > 0 ? (
+          <Link href="/study">
+            <div
+              className="rounded-2xl p-5 flex items-center justify-between float"
+              style={{
+                background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+                boxShadow: "0 8px 32px rgba(124,58,237,0.4)",
+              }}
+            >
+              <div>
+                <div className="text-white font-bold text-xl">Study Now</div>
+                <div className="text-purple-200 text-sm">{dueCount} cards due for review</div>
+              </div>
+              <span className="text-5xl">🃏</span>
+            </div>
+          </Link>
+        ) : (
+          <div
+            className="rounded-2xl p-5 flex items-center justify-between"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+          >
+            <div>
+              <div className="text-white font-bold text-xl">All Caught Up!</div>
+              <div className="text-sm" style={{ color: "var(--muted)" }}>No reviews due — check back later</div>
+            </div>
+            <span className="text-5xl">🎉</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/quiz">
+            <div
+              className="rounded-2xl p-4 flex flex-col items-center gap-2"
+              style={{
+                background: "rgba(6,182,212,0.08)",
+                border: "1px solid rgba(6,182,212,0.3)",
+              }}
+            >
+              <span className="text-3xl">⚡</span>
+              <span className="text-sm font-semibold" style={{ color: "#22d3ee" }}>Quick Quiz</span>
+            </div>
+          </Link>
+          <Link href="/vocabulary">
+            <div
+              className="rounded-2xl p-4 flex flex-col items-center gap-2"
+              style={{
+                background: "rgba(16,185,129,0.08)",
+                border: "1px solid rgba(16,185,129,0.3)",
+              }}
+            >
+              <span className="text-3xl">📖</span>
+              <span className="text-sm font-semibold" style={{ color: "#34d399" }}>My Words</span>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      {/* Achievements */}
+      {achievements.length > 0 && (
+        <div className="px-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--muted)" }}>
+            Achievements ({achievements.length})
+          </h2>
+          <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+            {[...achievements].reverse().slice(0, 8).map((a) => (
+              <div
+                key={a.id}
+                className="shrink-0 flex flex-col items-center gap-1 p-3 rounded-xl"
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                  minWidth: 72,
+                }}
+              >
+                <span className="text-2xl">{a.icon}</span>
+                <span className="text-[10px] text-center leading-tight" style={{ color: "var(--muted)" }}>
+                  {a.title}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <BottomNav />
     </div>
   );
 }
