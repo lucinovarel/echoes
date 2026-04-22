@@ -131,7 +131,7 @@ export default function StudyPage() {
     const acc = sessionTotal > 0 ? Math.round((sessionCorrect / sessionTotal) * 100) : 0;
     return (
       <div className="min-h-dvh flex flex-col items-center justify-center px-6 pb-28" style={{ background: "var(--bg)" }}>
-        <div className="text-center bounce-in w-full max-w-sm">
+        <div className="text-center bounce-in w-full max-w-sm mx-auto">
           <div className="text-7xl mb-4">
             {acc >= 80 ? "🏆" : acc >= 60 ? "👍" : "💪"}
           </div>
@@ -146,7 +146,7 @@ export default function StudyPage() {
           </p>
 
           {sessionTotal > 0 && (
-            <div className="grid grid-cols-3 gap-3 mb-6 w-full max-w-xs">
+            <div className="grid grid-cols-3 gap-3 mb-6 w-full max-w-xs mx-auto">
               {[
                 { val: sessionTotal, label: "Cards", color: "var(--accent)" },
                 { val: `${acc}%`, label: "Accuracy", color: "var(--green)" },
@@ -170,7 +170,7 @@ export default function StudyPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 w-full max-w-xs">
+          <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
             <button
               onClick={loadQueue}
               className="w-full py-3 font-black uppercase tracking-wider"
