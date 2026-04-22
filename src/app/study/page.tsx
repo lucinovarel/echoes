@@ -291,7 +291,7 @@ export default function StudyPage() {
               <div className={`flip-card-inner w-full h-full ${flipped ? "flipped" : ""}`}>
                 {/* Front — cream paper */}
                 <div
-                  className="flip-card-front w-full h-full flex flex-col items-center justify-center p-6 cursor-pointer"
+                  className="flip-card-front w-full h-full flex flex-col items-center justify-center p-6 cursor-pointer overflow-hidden"
                   style={{
                     background: "var(--surface)",
                     border: "2px solid var(--border)",
@@ -328,7 +328,7 @@ export default function StudyPage() {
 
                 {/* Back — navy paper */}
                 <div
-                  className="flip-card-back w-full h-full flex flex-col justify-between p-6"
+                  className="flip-card-back w-full h-full flex flex-col p-6 overflow-hidden"
                   style={{
                     background: "var(--accent)",
                     border: "2px solid var(--border)",
@@ -336,49 +336,53 @@ export default function StudyPage() {
                     borderRadius: "4px",
                   }}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-2xl font-black uppercase mb-1" style={{ color: "#f8f3ea", letterSpacing: "-0.01em" }}>
-                        {currentWord.word}
-                      </h3>
-                      {currentWord.phonetic && (
-                        <p className="text-xs font-medium mb-3" style={{ color: "rgba(248,243,234,0.6)" }}>
-                          {currentWord.phonetic}
-                        </p>
-                      )}
-                      <p className="text-base font-bold mb-1" style={{ color: "#f8f3ea" }}>{currentWord.meaning}</p>
-                      {currentWord.translation && (
-                        <p className="text-sm font-medium" style={{ color: "#f0b000" }}>{currentWord.translation}</p>
-                      )}
+                  <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-black uppercase mb-1" style={{ color: "#f8f3ea", letterSpacing: "-0.01em" }}>
+                          {currentWord.word}
+                        </h3>
+                        {currentWord.phonetic && (
+                          <p className="text-xs font-medium mb-3" style={{ color: "rgba(248,243,234,0.6)" }}>
+                            {currentWord.phonetic}
+                          </p>
+                        )}
+                        <p className="text-base font-bold mb-1" style={{ color: "#f8f3ea" }}>{currentWord.meaning}</p>
+                        {currentWord.translation && (
+                          <p className="text-sm font-medium" style={{ color: "#f0b000" }}>{currentWord.translation}</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleAudio}
+                        className="p-2 ml-3"
+                        style={{
+                          background: "rgba(248,243,234,0.15)",
+                          border: "1.5px solid rgba(248,243,234,0.4)",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        🔊
+                      </button>
                     </div>
-                    <button
-                      onClick={handleAudio}
-                      className="p-2 ml-3"
-                      style={{
-                        background: "rgba(248,243,234,0.15)",
-                        border: "1.5px solid rgba(248,243,234,0.4)",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      🔊
-                    </button>
-                  </div>
 
-                  {currentWord.example && (
-                    <div
-                      className="p-3 my-2"
-                      style={{
-                        background: "rgba(248,243,234,0.1)",
-                        border: "1.5px solid rgba(248,243,234,0.25)",
-                        borderRadius: "4px",
-                      }}
-                    >
-                      <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "rgba(248,243,234,0.5)" }}>
-                        Example
-                      </p>
-                      <p className="text-sm italic" style={{ color: "#f8f3ea" }}>"{currentWord.example}"</p>
-                    </div>
-                  )}
+                    {currentWord.example && (
+                      <div
+                        className="p-3 my-3"
+                        style={{
+                          background: "rgba(248,243,234,0.1)",
+                          border: "1.5px solid rgba(248,243,234,0.25)",
+                          borderRadius: "4px",
+                        }}
+                      >
+                        <p className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: "rgba(248,243,234,0.5)" }}>
+                          Example
+                        </p>
+                        <p className="text-sm italic" style={{ color: "#f8f3ea" }}>
+                          &ldquo;{currentWord.example}&rdquo;
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
                   <div>
                     <p className="text-xs font-black uppercase tracking-widest mb-2 text-center" style={{ color: "rgba(248,243,234,0.5)" }}>
