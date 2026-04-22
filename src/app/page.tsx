@@ -241,34 +241,69 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-2 mb-2">
           {[
             { href: "/quiz", icon: "⚡", label: "Quick Quiz", bg: "var(--accent)" },
             { href: "/translate", icon: "🇻🇳", label: "Việt → Anh", bg: "var(--primary)" },
             { href: "/recall", icon: "🧠", label: "Word Recall", bg: "var(--green)" },
-            { href: "/vocabulary", icon: "📖", label: "My Words", bg: "var(--surface2)" },
           ].map((item, i) => (
             <Link key={item.href} href={item.href}>
               <div
-                className="p-4 flex flex-col items-center gap-2"
+                className="p-3 flex flex-col items-center gap-1.5"
                 style={{
                   background: item.bg,
                   border: "2px solid var(--border)",
                   boxShadow: "3px 3px 0 var(--border)",
                   borderRadius: "4px",
-                  transform: i % 2 === 1 ? "rotate(-0.5deg)" : "none",
+                  transform: i === 1 ? "rotate(-0.5deg)" : "none",
                 }}
               >
-                <span className="text-3xl">{item.icon}</span>
-                <span
-                  className="text-xs font-black text-center uppercase tracking-wider"
-                  style={{ color: item.bg === "var(--surface2)" ? "var(--text)" : "#f8f3ea" }}
-                >
+                <span className="text-2xl">{item.icon}</span>
+                <span className="text-[10px] font-black text-center uppercase tracking-wider" style={{ color: "#f8f3ea" }}>
                   {item.label}
                 </span>
               </div>
             </Link>
           ))}
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { href: "/cloze", icon: "📝", label: "Fill Blank", bg: "var(--green)" },
+            { href: "/speed", icon: "⏱️", label: "Speed", bg: "var(--primary)" },
+            { href: "/listen", icon: "👂", label: "Listen", bg: "var(--accent)" },
+          ].map((item, i) => (
+            <Link key={item.href} href={item.href}>
+              <div
+                className="p-3 flex flex-col items-center gap-1.5"
+                style={{
+                  background: item.bg,
+                  border: "2px solid var(--border)",
+                  boxShadow: "3px 3px 0 var(--border)",
+                  borderRadius: "4px",
+                  transform: i === 1 ? "rotate(0.5deg)" : "none",
+                }}
+              >
+                <span className="text-2xl">{item.icon}</span>
+                <span className="text-[10px] font-black text-center uppercase tracking-wider" style={{ color: "#f8f3ea" }}>
+                  {item.label}
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-2 mt-2">
+          <Link href="/vocabulary">
+            <div className="p-3 flex items-center justify-between" style={{
+              background: "var(--surface2)", border: "2px solid var(--border)",
+              boxShadow: "3px 3px 0 var(--border)", borderRadius: "4px",
+            }}>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📖</span>
+                <span className="text-xs font-black uppercase tracking-wider" style={{ color: "var(--text)" }}>My Words</span>
+              </div>
+              <span className="text-xs font-bold" style={{ color: "var(--muted)" }}>→</span>
+            </div>
+          </Link>
         </div>
       </div>
 
