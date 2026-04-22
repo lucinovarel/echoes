@@ -241,9 +241,10 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {[
             { href: "/quiz", icon: "⚡", label: "Quick Quiz", bg: "var(--accent)" },
+            { href: "/translate", icon: "🇻🇳", label: "Việt → Anh", bg: "var(--primary)" },
             { href: "/recall", icon: "🧠", label: "Word Recall", bg: "var(--green)" },
             { href: "/vocabulary", icon: "📖", label: "My Words", bg: "var(--surface2)" },
           ].map((item, i) => (
@@ -255,7 +256,7 @@ export default function HomePage() {
                   border: "2px solid var(--border)",
                   boxShadow: "3px 3px 0 var(--border)",
                   borderRadius: "4px",
-                  transform: i === 1 ? "rotate(-0.5deg)" : "none",
+                  transform: i % 2 === 1 ? "rotate(-0.5deg)" : "none",
                 }}
               >
                 <span className="text-3xl">{item.icon}</span>
