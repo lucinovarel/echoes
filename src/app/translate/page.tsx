@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAllWords, updateWord } from "@/lib/db";
 import { calculateNextReview } from "@/lib/srs";
-import { weightedSample } from "@/lib/wordSelection";
+import { buildSessionWords } from "@/lib/wordSelection";
 import { useGameStore } from "@/store/gameStore";
 import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
@@ -52,7 +52,7 @@ export default function TranslatePage() {
       return;
     }
 
-    const selected = weightedSample(withTranslation, Math.min(10, withTranslation.length));
+    const selected = buildSessionWords(all, 10, (w) => !!(w.translation && w.translation.trim()));
 
     const qs: TranslateQuestion[] = selected.map((word) => {
       const distractors = all

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAllWords, updateWord } from "@/lib/db";
 import { calculateNextReview } from "@/lib/srs";
-import { weightedSample } from "@/lib/wordSelection";
+import { buildSessionWords } from "@/lib/wordSelection";
 import { useGameStore } from "@/store/gameStore";
 import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
@@ -47,7 +47,7 @@ export default function QuizPage() {
       return;
     }
 
-    const selected = weightedSample(all, Math.min(10, all.length));
+    const selected = buildSessionWords(all, 10);
 
     const qs: QuizQuestion[] = selected.map((word) => {
       const distractors = all
