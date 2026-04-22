@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getAllWords, updateWord } from "@/lib/db";
 import { calculateNextReview } from "@/lib/srs";
+import { weightedSample } from "@/lib/wordSelection";
 import { useGameStore } from "@/store/gameStore";
 import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
@@ -58,8 +59,7 @@ export default function ClozePage() {
       return;
     }
 
-    const shuffled = [...withExample].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, Math.min(10, withExample.length));
+    const selected = weightedSample(withExample, Math.min(10, withExample.length));
 
     const qs: ClozeQuestion[] = selected.map((word) => {
       const blankedSentence = blankWord(word.example!, word.word);

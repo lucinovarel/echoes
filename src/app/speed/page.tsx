@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { getAllWords, updateWord } from "@/lib/db";
 import { calculateNextReview } from "@/lib/srs";
+import { weightedSample } from "@/lib/wordSelection";
 import { useGameStore } from "@/store/gameStore";
 import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
@@ -75,8 +76,7 @@ export default function SpeedPage() {
       return;
     }
 
-    const shuffled = [...all].sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, Math.min(12, all.length));
+    const selected = weightedSample(all, Math.min(12, all.length));
 
     const qs: SpeedQuestion[] = selected.map((word) => {
       const distractors = all
