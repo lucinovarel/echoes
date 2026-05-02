@@ -24,17 +24,24 @@ export function calculateNextReview(
     interval = 1;
     nextReview.setMinutes(nextReview.getMinutes() + 1);
   } else if (isLearning) {
-    // Still in learning phase: use intraday steps
-    const stepMinutes = LEARNING_STEPS_MINUTES[srsLevel] ?? null;
-    srsLevel += 1;
-    if (stepMinutes !== null) {
-      // Not graduated yet: next step in minutes
-      interval = 1;
-      nextReview.setMinutes(nextReview.getMinutes() + stepMinutes);
-    } else {
-      // Just graduated: first real interval = 1 day
+    if (quality >= 4) {
+      // Easy in learning phase: skip remaining steps, graduate immediately
+      srsLevel = LEARNING_STEPS_MINUTES.length + 1;
       interval = 1;
       nextReview.setDate(nextReview.getDate() + interval);
+    } else {
+      // Still in learning phase: use intraday steps
+      const stepMinutes = LEARNING_STEPS_MINUTES[srsLevel] ?? null;
+      srsLevel += 1;
+      if (stepMinutes !== null) {
+        // Not graduated yet: next step in minutes
+        interval = 1;
+        nextReview.setMinutes(nextReview.getMinutes() + stepMinutes);
+      } else {
+        // Just graduated: first real interval = 1 day
+        interval = 1;
+        nextReview.setDate(nextReview.getDate() + interval);
+      }
     }
   } else {
     // Graduated — normal day-based SRS

@@ -54,8 +54,14 @@ export function buildSessionWords<T extends VocabWord>(
   if (pool.length === 0) return [];
 
   const now = new Date();
+  // Words reviewed in the last 2 hours are excluded from filler to prevent
+  // re-appearing before their scheduled step (e.g. a 10-min learning card
+  // shouldn't fill a slot when the due pool is small).
+  const twoHoursAhead = new Date(now.getTime() + 2 * 60 * 60 * 1000);
   const due = pool.filter((w) => new Date(w.nextReview) <= now);
-  const notDue = pool.filter((w) => new Date(w.nextReview) > now);
+  const notDue = pool.filter(
+    (w) => new Date(w.nextReview) > twoHoursAhead
+  );
 
   // Take due words first (shuffled so order within due set is random)
   const dueSelected = due.sort(() => Math.random() - 0.5).slice(0, count);
