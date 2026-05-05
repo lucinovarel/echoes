@@ -9,10 +9,15 @@ import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
 import AchievementToast from "@/components/AchievementToast";
 import BottomNav from "@/components/BottomNav";
+import GameTagSetup from "@/components/GameTagSetup";
+import MissedWords from "@/components/MissedWords";
 
 type Phase = "loading" | "front" | "back" | "done";
 
 export default function StudyPage() {
+  const [allWords, setAllWords] = useState<VocabWord[]>([]);
+  const [setupDone, setSetupDone] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [queue, setQueue] = useState<VocabWord[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -20,6 +25,7 @@ export default function StudyPage() {
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [sessionTotal, setSessionTotal] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [missedWords, setMissedWords] = useState<VocabWord[]>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
   const [animClass, setAnimClass] = useState("");
   const [studyAll, setStudyAll] = useState(false);
@@ -28,23 +34,29 @@ export default function StudyPage() {
   const { addXP, recordReview, checkStreak, incrementDailyProgress } = useGameStore();
 
   useEffect(() => {
-    loadQueue();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studyAll]);
+    getAllWords().then(setAllWords);
+  }, []);
 
-  async function loadQueue() {
+  async function loadQueue(tag: string | null = selectedTag) {
     setPhase("loading");
     let words: VocabWord[];
     if (studyAll) {
-      words = await getAllWords();
+      words = allWords.length > 0 ? [...allWords] : await getAllWords();
     } else {
       words = await getDueWords();
+    }
+    if (tag) {
+      words = words.filter((w) => w.tags?.includes(tag) ?? false);
     }
     const shuffled = words.sort(() => Math.random() - 0.5);
     setQueue(shuffled);
     setIndex(0);
     setPhase(shuffled.length > 0 ? "front" : "done");
     setFlipped(false);
+    setSessionCorrect(0);
+    setSessionTotal(0);
+    setEarnedXP(0);
+    setMissedWords([]);
   }
 
   const currentWord = queue[index];
@@ -67,6 +79,8 @@ export default function StudyPage() {
 
     const correct = quality >= 3;
     const xp = getXpForQuality(quality);
+
+    if (!correct) setMissedWords((prev) => [...prev, currentWord]);
 
     const updates = calculateNextReview(currentWord, quality);
     const updated: VocabWord = {
@@ -117,7 +131,21 @@ export default function StudyPage() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, handleFlip]);
+
+  if (!setupDone) {
+    return (
+      <GameTagSetup
+        allWords={allWords}
+        selectedTag={selectedTag}
+        onSelectTag={setSelectedTag}
+        onStart={() => { setSetupDone(true); loadQueue(selectedTag); }}
+        title="Study"
+        icon="🃏"
+      />
+    );
+  }
 
   if (phase === "loading") {
     return (
@@ -170,9 +198,11 @@ export default function StudyPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
+          <MissedWords words={missedWords} />
+
+          <div className="flex flex-col gap-3 w-full max-w-xs mx-auto mt-6">
             <button
-              onClick={loadQueue}
+              onClick={() => loadQueue(selectedTag)}
               className="w-full py-3 font-black uppercase tracking-wider"
               style={{
                 background: "var(--primary)",
@@ -186,7 +216,7 @@ export default function StudyPage() {
             </button>
             {!studyAll && (
               <button
-                onClick={() => setStudyAll(true)}
+                onClick={() => { setStudyAll(true); loadQueue(selectedTag); }}
                 className="w-full py-3 font-bold uppercase tracking-wider"
                 style={{
                   background: "var(--surface)",
@@ -199,6 +229,19 @@ export default function StudyPage() {
                 Study All Words
               </button>
             )}
+            <button
+              onClick={() => { setSetupDone(false); setPhase("loading"); setStudyAll(false); }}
+              className="w-full py-3 font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--surface)",
+                border: "2px solid var(--border)",
+                boxShadow: "2px 2px 0 var(--border)",
+                borderRadius: "4px",
+                color: "var(--muted)",
+              }}
+            >
+              Change tag
+            </button>
             <Link
               href="/"
               className="w-full py-3 font-bold uppercase tracking-wider text-center block"
@@ -289,7 +332,7 @@ export default function StudyPage() {
 
             <div className="flip-card w-full" style={{ height: "340px" }}>
               <div className={`flip-card-inner w-full h-full ${flipped ? "flipped" : ""}`}>
-                {/* Front — cream paper */}
+                {/* Front */}
                 <div
                   className="flip-card-front w-full h-full flex flex-col items-center justify-center p-6 cursor-pointer overflow-hidden"
                   style={{
@@ -326,7 +369,7 @@ export default function StudyPage() {
                   </button>
                 </div>
 
-                {/* Back — navy paper */}
+                {/* Back */}
                 <div
                   className="flip-card-back w-full h-full flex flex-col p-6 overflow-hidden"
                   style={{

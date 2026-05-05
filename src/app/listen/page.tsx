@@ -10,6 +10,8 @@ import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
 import AchievementToast from "@/components/AchievementToast";
 import BottomNav from "@/components/BottomNav";
+import GameTagSetup from "@/components/GameTagSetup";
+import MissedWords from "@/components/MissedWords";
 
 interface ListenQuestion {
   word: VocabWord;
@@ -20,33 +22,43 @@ interface ListenQuestion {
 type AnswerState = "idle" | "correct" | "wrong";
 
 export default function ListenPage() {
+  const [allWords, setAllWords] = useState<VocabWord[]>([]);
+  const [setupDone, setSetupDone] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [questions, setQuestions] = useState<ListenQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [answerState, setAnswerState] = useState<AnswerState>("idle");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [missedWords, setMissedWords] = useState<VocabWord[]>([]);
   const [done, setDone] = useState(false);
   const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const { addXP, recordReview, checkStreak: checkGameStreak, incrementDailyProgress } = useGameStore();
 
-  useEffect(() => { buildGame(); }, []);
+  useEffect(() => {
+    getAllWords().then(setAllWords);
+  }, []);
 
-  async function buildGame() {
+  async function buildGame(tag: string | null = selectedTag) {
     setLoading(true);
-    const all = await getAllWords();
-    if (all.length < 2) {
+    const all = allWords.length > 0 ? allWords : await getAllWords();
+
+    const filter = tag ? (w: VocabWord) => w.tags?.includes(tag) ?? false : undefined;
+    const eligible = filter ? all.filter(filter) : all;
+
+    if (eligible.length < 2) {
       setLoading(false);
       setDone(true);
       return;
     }
 
-    const selected = buildSessionWords(all, 10);
+    const selected = buildSessionWords(all, 10, filter);
 
     const qs: ListenQuestion[] = selected.map((word) => {
       const distractors = all
@@ -66,6 +78,7 @@ export default function ListenPage() {
     setDone(false);
     setSessionCorrect(0);
     setEarnedXP(0);
+    setMissedWords([]);
     setStreak(0);
     setMaxStreak(0);
     setAnswerState("idle");
@@ -76,11 +89,9 @@ export default function ListenPage() {
   const playCurrentWord = useCallback((word: string) => {
     setIsPlaying(true);
     speakWord(word);
-    // SpeechSynthesis doesn't have a reliable onend cross-browser, approximate with timeout
     setTimeout(() => setIsPlaying(false), 1800);
   }, []);
 
-  // Auto-play when question changes
   useEffect(() => {
     if (!loading && !done && questions[index]) {
       const timer = setTimeout(() => playCurrentWord(questions[index].word.word), 300);
@@ -98,7 +109,10 @@ export default function ListenPage() {
     const correct = optionIndex === current.correctIndex;
     setAnswerState(correct ? "correct" : "wrong");
 
-    if (!correct) speakWord(current.word.word);
+    if (!correct) {
+      setMissedWords((prev) => [...prev, current.word]);
+      speakWord(current.word.word);
+    }
 
     const newStreak = correct ? streak + 1 : 0;
     setStreak(newStreak);
@@ -134,6 +148,19 @@ export default function ListenPage() {
         setDone(true);
       }
     }, 1200);
+  }
+
+  if (!setupDone) {
+    return (
+      <GameTagSetup
+        allWords={allWords}
+        selectedTag={selectedTag}
+        onSelectTag={setSelectedTag}
+        onStart={() => { setSetupDone(true); buildGame(selectedTag); }}
+        title="Listen"
+        icon="🔊"
+      />
+    );
   }
 
   if (loading) {
@@ -178,12 +205,24 @@ export default function ListenPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3">
-            <button onClick={buildGame} className="w-full py-3 font-black uppercase tracking-wider" style={{
+          <MissedWords words={missedWords} />
+
+          <div className="flex flex-col gap-3 mt-6">
+            <button onClick={() => buildGame(selectedTag)} className="w-full py-3 font-black uppercase tracking-wider" style={{
               background: "var(--accent)", border: "2px solid var(--border)",
               boxShadow: "4px 4px 0 var(--border)", borderRadius: "4px", color: "#f8f3ea",
             }}>
               Chơi lại
+            </button>
+            <button
+              onClick={() => { setSetupDone(false); setDone(false); }}
+              className="w-full py-3 font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--surface)", border: "2px solid var(--border)",
+                boxShadow: "2px 2px 0 var(--border)", borderRadius: "4px", color: "var(--muted)",
+              }}
+            >
+              Change tag
             </button>
             <Link href="/" className="block w-full py-3 font-bold uppercase tracking-wider text-center" style={{
               background: "var(--surface2)", border: "2px solid var(--border)",
@@ -237,7 +276,6 @@ export default function ListenPage() {
 
       {current && (
         <div className="flex-1 flex flex-col justify-between px-4 py-4">
-          {/* Audio card */}
           <div
             className={`p-8 mb-6 flex flex-col items-center justify-center transition-all duration-300 ${
               answerState === "correct" ? "correct-pulse" : answerState === "wrong" ? "wrong-pulse" : ""
@@ -292,7 +330,6 @@ export default function ListenPage() {
             )}
           </div>
 
-          {/* Options */}
           <div className="grid grid-cols-2 gap-3">
             {current.options.map((opt, i) => {
               let bg = "var(--surface)";

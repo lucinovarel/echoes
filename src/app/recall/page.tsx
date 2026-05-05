@@ -2,17 +2,22 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
-import { getDueWords, updateWord } from "@/lib/db";
+import { getAllWords, getDueWords, updateWord } from "@/lib/db";
 import { calculateNextReview } from "@/lib/srs";
 import { useGameStore } from "@/store/gameStore";
 import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
 import AchievementToast from "@/components/AchievementToast";
 import BottomNav from "@/components/BottomNav";
+import GameTagSetup from "@/components/GameTagSetup";
+import MissedWords from "@/components/MissedWords";
 
 type Phase = "loading" | "input" | "result" | "done";
 
 export default function RecallPage() {
+  const [allWords, setAllWords] = useState<VocabWord[]>([]);
+  const [setupDone, setSetupDone] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [words, setWords] = useState<VocabWord[]>([]);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -21,29 +26,36 @@ export default function RecallPage() {
   const [hintsRevealed, setHintsRevealed] = useState(0);
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [missedWords, setMissedWords] = useState<VocabWord[]>([]);
   const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
   const [allCaughtUp, setAllCaughtUp] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { addXP, recordReview, checkStreak, incrementDailyProgress } = useGameStore();
 
-  useEffect(() => { buildSession(); }, []);
+  useEffect(() => {
+    getAllWords().then(setAllWords);
+  }, []);
 
-  async function buildSession() {
+  async function buildSession(tag: string | null = selectedTag) {
     setPhase("loading");
-    const all = await getDueWords();
-    if (all.length === 0) {
+    let due = await getDueWords();
+    if (tag) {
+      due = due.filter((w) => w.tags?.includes(tag) ?? false);
+    }
+    if (due.length === 0) {
       setAllCaughtUp(true);
       setPhase("done");
       return;
     }
     setAllCaughtUp(false);
-    const shuffled = [...all].sort(() => Math.random() - 0.5).slice(0, Math.min(20, all.length));
+    const shuffled = [...due].sort(() => Math.random() - 0.5).slice(0, Math.min(20, due.length));
     setWords(shuffled);
     setIndex(0);
     setPhase("input");
     setSessionCorrect(0);
     setEarnedXP(0);
+    setMissedWords([]);
     setUserInput("");
     setHintsRevealed(0);
     setTimeout(() => inputRef.current?.focus(), 100);
@@ -69,6 +81,8 @@ export default function RecallPage() {
     setPhase("result");
     speakWord(current.word);
 
+    if (!correct) setMissedWords((prev) => [...prev, current]);
+
     const xp = correct ? (hintsRevealed > 0 ? 10 : 20) : 2;
 
     const updates = calculateNextReview(current, correct ? 4 : 1);
@@ -92,6 +106,7 @@ export default function RecallPage() {
   async function handleSkip() {
     if (!current || phase !== "input") return;
     setIsCorrect(false);
+    setMissedWords((prev) => [...prev, current]);
     setPhase("result");
     speakWord(current.word);
 
@@ -132,6 +147,19 @@ export default function RecallPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, handleSubmit]);
+
+  if (!setupDone) {
+    return (
+      <GameTagSetup
+        allWords={allWords}
+        selectedTag={selectedTag}
+        onSelectTag={setSelectedTag}
+        onStart={() => { setSetupDone(true); buildSession(selectedTag); }}
+        title="Recall"
+        icon="🧠"
+      />
+    );
+  }
 
   if (phase === "loading") {
     return (
@@ -183,10 +211,12 @@ export default function RecallPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3">
+          <MissedWords words={missedWords} />
+
+          <div className="flex flex-col gap-3 mt-6">
             {!allCaughtUp && (
               <button
-                onClick={buildSession}
+                onClick={() => buildSession(selectedTag)}
                 className="w-full py-3 font-black uppercase tracking-wider"
                 style={{
                   background: "var(--green)",
@@ -199,6 +229,19 @@ export default function RecallPage() {
                 Practice Again
               </button>
             )}
+            <button
+              onClick={() => { setSetupDone(false); setPhase("loading"); }}
+              className="w-full py-3 font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--surface)",
+                border: "2px solid var(--border)",
+                boxShadow: "2px 2px 0 var(--border)",
+                borderRadius: "4px",
+                color: "var(--muted)",
+              }}
+            >
+              Change tag
+            </button>
             <Link
               href="/"
               className="block w-full py-3 font-bold uppercase tracking-wider text-center"
@@ -334,7 +377,7 @@ export default function RecallPage() {
                     )}
                     {userInput.trim() && (
                       <p className="text-sm mt-1 font-medium" style={{ color: "rgba(248,243,234,0.75)" }}>
-                        You typed: "{userInput.trim()}"
+                        You typed: &ldquo;{userInput.trim()}&rdquo;
                       </p>
                     )}
                   </div>
@@ -362,9 +405,7 @@ export default function RecallPage() {
                   onChange={(e) => setUserInput(e.target.value)}
                   placeholder="Type the word..."
                   className="flex-1 bg-transparent text-lg outline-none font-bold"
-                  style={{
-                    color: "var(--text)",
-                  }}
+                  style={{ color: "var(--text)" }}
                   autoComplete="off"
                   autoCorrect="off"
                   autoCapitalize="off"

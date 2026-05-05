@@ -26,13 +26,13 @@ const navItems = [
     ),
   },
   {
-    href: "/quiz",
-    label: "Quiz",
+    href: "/stats",
+    label: "Stats",
     icon: (active: boolean) => (
-      <svg viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={2} className="w-6 h-6">
-        <circle cx="12" cy="12" r="10" />
-        <path strokeLinecap="round" d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-        <line x1="12" y1="17" x2="12.01" y2="17" strokeWidth={3} strokeLinecap="round" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6">
+        <rect x="3" y="12" width="4" height="9" rx="1" fill={active ? "currentColor" : "none"} />
+        <rect x="10" y="7" width="4" height="14" rx="1" fill={active ? "currentColor" : "none"} />
+        <rect x="17" y="3" width="4" height="18" rx="1" fill={active ? "currentColor" : "none"} />
       </svg>
     ),
   },

@@ -277,6 +277,8 @@ export default function VocabularyPage() {
               const accuracy = word.reviewCount > 0
                 ? Math.round((word.correctCount / word.reviewCount) * 100)
                 : null;
+              const isLeech =
+                word.reviewCount >= 8 && accuracy !== null && accuracy < 40;
 
               return (
                 <div
@@ -284,8 +286,8 @@ export default function VocabularyPage() {
                   className="overflow-hidden transition-all duration-200"
                   style={{
                     background: "var(--surface)",
-                    border: "2px solid var(--border)",
-                    boxShadow: "3px 3px 0 var(--border)",
+                    border: isLeech ? "2px solid var(--primary)" : "2px solid var(--border)",
+                    boxShadow: isLeech ? "3px 3px 0 var(--primary)" : "3px 3px 0 var(--border)",
                     borderRadius: "4px",
                   }}
                 >
@@ -306,6 +308,14 @@ export default function VocabularyPage() {
                             style={{ color: "var(--gold)", borderColor: "var(--gold)" }}
                           >
                             Due
+                          </span>
+                        )}
+                        {isLeech && (
+                          <span
+                            className="stamp"
+                            style={{ color: "var(--primary)", borderColor: "var(--primary)" }}
+                          >
+                            Leech
                           </span>
                         )}
                       </div>

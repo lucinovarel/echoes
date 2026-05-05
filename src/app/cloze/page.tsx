@@ -10,6 +10,8 @@ import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
 import AchievementToast from "@/components/AchievementToast";
 import BottomNav from "@/components/BottomNav";
+import GameTagSetup from "@/components/GameTagSetup";
+import MissedWords from "@/components/MissedWords";
 
 interface ClozeQuestion {
   word: VocabWord;
@@ -28,38 +30,50 @@ function blankWord(sentence: string, word: string): string {
   return result === sentence ? `${sentence.replace(/\.$/, "")} ______.` : result;
 }
 
+const BASE_FILTER = (w: VocabWord) => !!(w.example && w.example.trim());
+
 export default function ClozePage() {
+  const [allWords, setAllWords] = useState<VocabWord[]>([]);
+  const [setupDone, setSetupDone] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [questions, setQuestions] = useState<ClozeQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [answerState, setAnswerState] = useState<AnswerState>("idle");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [missedWords, setMissedWords] = useState<VocabWord[]>([]);
   const [done, setDone] = useState(false);
   const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
   const [notEnough, setNotEnough] = useState(false);
 
   const { addXP, recordReview, checkStreak: checkGameStreak, incrementDailyProgress } = useGameStore();
 
-  useEffect(() => { buildGame(); }, []);
+  useEffect(() => {
+    getAllWords().then(setAllWords);
+  }, []);
 
-  async function buildGame() {
+  async function buildGame(tag: string | null = selectedTag) {
     setLoading(true);
     setNotEnough(false);
-    const all = await getAllWords();
-    const withExample = all.filter((w) => w.example && w.example.trim() !== "");
+    const all = allWords.length > 0 ? allWords : await getAllWords();
 
-    if (withExample.length < 2) {
+    const filter = tag
+      ? (w: VocabWord) => BASE_FILTER(w) && (w.tags?.includes(tag) ?? false)
+      : BASE_FILTER;
+
+    const eligible = all.filter(filter);
+    if (eligible.length < 2) {
       setLoading(false);
       setNotEnough(true);
       setDone(true);
       return;
     }
 
-    const selected = buildSessionWords(all, 10, (w) => !!(w.example && w.example.trim()));
+    const selected = buildSessionWords(all, 10, filter);
 
     const qs: ClozeQuestion[] = selected.map((word) => {
       const blankedSentence = blankWord(word.example!, word.word);
@@ -82,6 +96,7 @@ export default function ClozePage() {
     setDone(false);
     setSessionCorrect(0);
     setEarnedXP(0);
+    setMissedWords([]);
     setStreak(0);
     setMaxStreak(0);
     setAnswerState("idle");
@@ -97,6 +112,8 @@ export default function ClozePage() {
     setSelectedOption(optionIndex);
     const correct = optionIndex === current.correctIndex;
     setAnswerState(correct ? "correct" : "wrong");
+
+    if (!correct) setMissedWords((prev) => [...prev, current.word]);
 
     speakWord(current.word.word);
 
@@ -134,6 +151,20 @@ export default function ClozePage() {
         setDone(true);
       }
     }, 1400);
+  }
+
+  if (!setupDone) {
+    return (
+      <GameTagSetup
+        allWords={allWords}
+        selectedTag={selectedTag}
+        onSelectTag={setSelectedTag}
+        onStart={() => { setSetupDone(true); buildGame(selectedTag); }}
+        title="Cloze"
+        icon="📝"
+        wordFilter={BASE_FILTER}
+      />
+    );
   }
 
   if (loading) {
@@ -178,15 +209,30 @@ export default function ClozePage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3">
+          <MissedWords words={missedWords} />
+
+          <div className="flex flex-col gap-3 mt-6">
             {!notEnough && (
-              <button onClick={buildGame} className="w-full py-3 font-black uppercase tracking-wider" style={{
+              <button onClick={() => buildGame(selectedTag)} className="w-full py-3 font-black uppercase tracking-wider" style={{
                 background: "var(--green)", border: "2px solid var(--border)",
                 boxShadow: "4px 4px 0 var(--border)", borderRadius: "4px", color: "#f8f3ea",
               }}>
                 Chơi lại
               </button>
             )}
+            <button
+              onClick={() => { setSetupDone(false); setDone(false); setNotEnough(false); }}
+              className="w-full py-3 font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--surface)",
+                border: "2px solid var(--border)",
+                boxShadow: "2px 2px 0 var(--border)",
+                borderRadius: "4px",
+                color: "var(--muted)",
+              }}
+            >
+              Change tag
+            </button>
             <Link href="/" className="block w-full py-3 font-bold uppercase tracking-wider text-center" style={{
               background: "var(--surface2)", border: "2px solid var(--border)",
               boxShadow: "3px 3px 0 var(--border)", borderRadius: "4px", color: "var(--muted)",
@@ -239,7 +285,6 @@ export default function ClozePage() {
 
       {current && (
         <div className="flex-1 flex flex-col justify-between px-4 py-4">
-          {/* Sentence card */}
           <div
             className={`p-6 mb-6 transition-all duration-300 ${answerState === "correct" ? "correct-pulse" : answerState === "wrong" ? "wrong-pulse" : ""}`}
             style={{
@@ -275,12 +320,11 @@ export default function ClozePage() {
             )}
           </div>
 
-          {/* Options */}
           <div className="flex flex-col gap-3">
             {current.options.map((opt, i) => {
               let bg = "var(--surface)";
               let textColor = "var(--text)";
-              let border = "2px solid var(--border)";
+              const border = "2px solid var(--border)";
               const shadow = "3px 3px 0 var(--border)";
 
               if (answerState !== "idle") {

@@ -10,6 +10,8 @@ import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
 import AchievementToast from "@/components/AchievementToast";
 import BottomNav from "@/components/BottomNav";
+import GameTagSetup from "@/components/GameTagSetup";
+import MissedWords from "@/components/MissedWords";
 
 interface QuizQuestion {
   word: VocabWord;
@@ -20,34 +22,39 @@ interface QuizQuestion {
 type AnswerState = "idle" | "correct" | "wrong";
 
 export default function QuizPage() {
+  const [allWords, setAllWords] = useState<VocabWord[]>([]);
+  const [setupDone, setSetupDone] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [answerState, setAnswerState] = useState<AnswerState>("idle");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [missedWords, setMissedWords] = useState<VocabWord[]>([]);
   const [done, setDone] = useState(false);
   const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
 
   const { addXP, recordReview, checkStreak: checkGameStreak, incrementDailyProgress } = useGameStore();
 
   useEffect(() => {
-    buildQuiz();
+    getAllWords().then(setAllWords);
   }, []);
 
-  async function buildQuiz() {
+  async function buildQuiz(tag: string | null = selectedTag) {
     setLoading(true);
-    const all = await getAllWords();
+    const all = allWords.length > 0 ? allWords : await getAllWords();
     if (all.length < 2) {
       setLoading(false);
       setDone(true);
       return;
     }
 
-    const selected = buildSessionWords(all, 10);
+    const tagFilter = tag ? (w: VocabWord) => w.tags?.includes(tag) ?? false : undefined;
+    const selected = buildSessionWords(all, 10, tagFilter);
 
     const qs: QuizQuestion[] = selected.map((word) => {
       const distractors = all
@@ -68,6 +75,7 @@ export default function QuizPage() {
     setDone(false);
     setSessionCorrect(0);
     setEarnedXP(0);
+    setMissedWords([]);
     setStreak(0);
     setMaxStreak(0);
     setAnswerState("idle");
@@ -83,6 +91,8 @@ export default function QuizPage() {
     setSelectedOption(optionIndex);
     const correct = optionIndex === current.correctIndex;
     setAnswerState(correct ? "correct" : "wrong");
+
+    if (!correct) setMissedWords((prev) => [...prev, current.word]);
 
     speakWord(current.word.word);
 
@@ -123,6 +133,19 @@ export default function QuizPage() {
         setDone(true);
       }
     }, 1200);
+  }
+
+  if (!setupDone) {
+    return (
+      <GameTagSetup
+        allWords={allWords}
+        selectedTag={selectedTag}
+        onSelectTag={setSelectedTag}
+        onStart={() => { setSetupDone(true); buildQuiz(selectedTag); }}
+        title="Quiz"
+        icon="⚡"
+      />
+    );
   }
 
   if (loading) {
@@ -175,9 +198,11 @@ export default function QuizPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3">
+          <MissedWords words={missedWords} />
+
+          <div className="flex flex-col gap-3 mt-6">
             <button
-              onClick={buildQuiz}
+              onClick={() => buildQuiz(selectedTag)}
               className="w-full py-3 font-black uppercase tracking-wider"
               style={{
                 background: "var(--accent)",
@@ -188,6 +213,19 @@ export default function QuizPage() {
               }}
             >
               Play Again
+            </button>
+            <button
+              onClick={() => { setSetupDone(false); setDone(false); }}
+              className="w-full py-3 font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--surface)",
+                border: "2px solid var(--border)",
+                boxShadow: "2px 2px 0 var(--border)",
+                borderRadius: "4px",
+                color: "var(--muted)",
+              }}
+            >
+              Change tag
             </button>
             <Link
               href="/"

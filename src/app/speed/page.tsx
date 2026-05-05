@@ -10,6 +10,8 @@ import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
 import AchievementToast from "@/components/AchievementToast";
 import BottomNav from "@/components/BottomNav";
+import GameTagSetup from "@/components/GameTagSetup";
+import MissedWords from "@/components/MissedWords";
 
 interface SpeedQuestion {
   word: VocabWord;
@@ -22,15 +24,19 @@ type AnswerState = "idle" | "correct" | "wrong" | "timeout";
 const TIME_LIMIT = 5;
 
 export default function SpeedPage() {
+  const [allWords, setAllWords] = useState<VocabWord[]>([]);
+  const [setupDone, setSetupDone] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [questions, setQuestions] = useState<SpeedQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [answerState, setAnswerState] = useState<AnswerState>("idle");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [missedWords, setMissedWords] = useState<VocabWord[]>([]);
   const [done, setDone] = useState(false);
   const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
@@ -38,7 +44,10 @@ export default function SpeedPage() {
 
   const { addXP, recordReview, checkStreak: checkGameStreak, incrementDailyProgress } = useGameStore();
 
-  useEffect(() => { buildGame(); }, []);
+  useEffect(() => {
+    getAllWords().then(setAllWords);
+    return () => clearTimer();
+  }, []);
 
   function clearTimer() {
     if (timerRef.current) {
@@ -62,21 +71,21 @@ export default function SpeedPage() {
     }, 1000);
   }
 
-  useEffect(() => {
-    return () => clearTimer();
-  }, []);
-
-  async function buildGame() {
+  async function buildGame(tag: string | null = selectedTag) {
     clearTimer();
     setLoading(true);
-    const all = await getAllWords();
-    if (all.length < 2) {
+    const all = allWords.length > 0 ? allWords : await getAllWords();
+
+    const filter = tag ? (w: VocabWord) => w.tags?.includes(tag) ?? false : undefined;
+    const eligible = filter ? all.filter(filter) : all;
+
+    if (eligible.length < 2) {
       setLoading(false);
       setDone(true);
       return;
     }
 
-    const selected = buildSessionWords(all, 12);
+    const selected = buildSessionWords(all, 12, filter);
 
     const qs: SpeedQuestion[] = selected.map((word) => {
       const distractors = all
@@ -96,6 +105,7 @@ export default function SpeedPage() {
     setDone(false);
     setSessionCorrect(0);
     setEarnedXP(0);
+    setMissedWords([]);
     setStreak(0);
     setMaxStreak(0);
     setAnswerState("idle");
@@ -103,7 +113,6 @@ export default function SpeedPage() {
     setLoading(false);
   }
 
-  // Start timer when a new question appears
   useEffect(() => {
     if (!loading && !done && questions.length > 0 && answerState === "idle") {
       startTimer();
@@ -122,7 +131,8 @@ export default function SpeedPage() {
     setSelectedOption(optionIndex);
     setAnswerState(state);
 
-    if (!timedOut) speakWord(current.word.word);
+    if (!correct && current) setMissedWords((prev) => [...prev, current.word]);
+    if (!timedOut && current) speakWord(current.word.word);
 
     const newStreak = correct ? streak + 1 : 0;
     setStreak(newStreak);
@@ -132,13 +142,15 @@ export default function SpeedPage() {
     const streakBonus = correct && newStreak >= 3 ? 5 : 0;
     const totalXP = baseXP + streakBonus;
 
-    const updates = calculateNextReview(current.word, correct ? 4 : 1);
-    await updateWord({
-      ...current.word,
-      ...updates,
-      reviewCount: current.word.reviewCount + 1,
-      correctCount: current.word.correctCount + (correct ? 1 : 0),
-    });
+    if (current) {
+      const updates = calculateNextReview(current.word, correct ? 4 : 1);
+      await updateWord({
+        ...current.word,
+        ...updates,
+        reviewCount: current.word.reviewCount + 1,
+        correctCount: current.word.correctCount + (correct ? 1 : 0),
+      });
+    }
 
     checkGameStreak();
     incrementDailyProgress();
@@ -168,6 +180,19 @@ export default function SpeedPage() {
   function handleTimeout() {
     if (answerState !== "idle") return;
     resolveAnswer(null, true);
+  }
+
+  if (!setupDone) {
+    return (
+      <GameTagSetup
+        allWords={allWords}
+        selectedTag={selectedTag}
+        onSelectTag={setSelectedTag}
+        onStart={() => { setSetupDone(true); buildGame(selectedTag); }}
+        title="Speed"
+        icon="⏱️"
+      />
+    );
   }
 
   if (loading) {
@@ -212,12 +237,24 @@ export default function SpeedPage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3">
-            <button onClick={buildGame} className="w-full py-3 font-black uppercase tracking-wider" style={{
+          <MissedWords words={missedWords} />
+
+          <div className="flex flex-col gap-3 mt-6">
+            <button onClick={() => buildGame(selectedTag)} className="w-full py-3 font-black uppercase tracking-wider" style={{
               background: "var(--primary)", border: "2px solid var(--border)",
               boxShadow: "4px 4px 0 var(--border)", borderRadius: "4px", color: "#f8f3ea",
             }}>
               Thử lại
+            </button>
+            <button
+              onClick={() => { setSetupDone(false); setDone(false); }}
+              className="w-full py-3 font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--surface)", border: "2px solid var(--border)",
+                boxShadow: "2px 2px 0 var(--border)", borderRadius: "4px", color: "var(--muted)",
+              }}
+            >
+              Change tag
             </button>
             <Link href="/" className="block w-full py-3 font-bold uppercase tracking-wider text-center" style={{
               background: "var(--surface2)", border: "2px solid var(--border)",
@@ -267,12 +304,10 @@ export default function SpeedPage() {
           </div>
         </div>
 
-        {/* Progress bar */}
         <div className="h-2 overflow-hidden mb-2" style={{ background: "var(--surface2)", border: "1.5px solid var(--border)", borderRadius: "2px" }}>
           <div className="h-full transition-all duration-500" style={{ width: `${progress}%`, background: "var(--accent)" }} />
         </div>
 
-        {/* Timer bar */}
         <div className="h-4 overflow-hidden" style={{ background: "var(--surface2)", border: "1.5px solid var(--border)", borderRadius: "2px" }}>
           <div
             className="h-full transition-all duration-1000 ease-linear"

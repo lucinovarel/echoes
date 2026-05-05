@@ -10,6 +10,8 @@ import { VocabWord, Achievement } from "@/lib/types";
 import { speakWord } from "@/lib/audio";
 import AchievementToast from "@/components/AchievementToast";
 import BottomNav from "@/components/BottomNav";
+import GameTagSetup from "@/components/GameTagSetup";
+import MissedWords from "@/components/MissedWords";
 
 interface TranslateQuestion {
   word: VocabWord;
@@ -19,16 +21,22 @@ interface TranslateQuestion {
 
 type AnswerState = "idle" | "correct" | "wrong";
 
+const BASE_FILTER = (w: VocabWord) => !!(w.translation && w.translation.trim());
+
 export default function TranslatePage() {
+  const [allWords, setAllWords] = useState<VocabWord[]>([]);
+  const [setupDone, setSetupDone] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [questions, setQuestions] = useState<TranslateQuestion[]>([]);
   const [index, setIndex] = useState(0);
   const [answerState, setAnswerState] = useState<AnswerState>("idle");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [sessionCorrect, setSessionCorrect] = useState(0);
   const [earnedXP, setEarnedXP] = useState(0);
+  const [missedWords, setMissedWords] = useState<VocabWord[]>([]);
   const [done, setDone] = useState(false);
   const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
   const [notEnough, setNotEnough] = useState(false);
@@ -36,23 +44,27 @@ export default function TranslatePage() {
   const { addXP, recordReview, checkStreak: checkGameStreak, incrementDailyProgress } = useGameStore();
 
   useEffect(() => {
-    buildGame();
+    getAllWords().then(setAllWords);
   }, []);
 
-  async function buildGame() {
+  async function buildGame(tag: string | null = selectedTag) {
     setLoading(true);
     setNotEnough(false);
-    const all = await getAllWords();
-    const withTranslation = all.filter((w) => w.translation && w.translation.trim() !== "");
+    const all = allWords.length > 0 ? allWords : await getAllWords();
 
-    if (withTranslation.length < 2) {
+    const filter = tag
+      ? (w: VocabWord) => BASE_FILTER(w) && (w.tags?.includes(tag) ?? false)
+      : BASE_FILTER;
+
+    const eligible = all.filter(filter);
+    if (eligible.length < 2) {
       setLoading(false);
       setNotEnough(true);
       setDone(true);
       return;
     }
 
-    const selected = buildSessionWords(all, 10, (w) => !!(w.translation && w.translation.trim()));
+    const selected = buildSessionWords(all, 10, filter);
 
     const qs: TranslateQuestion[] = selected.map((word) => {
       const distractors = all
@@ -73,6 +85,7 @@ export default function TranslatePage() {
     setDone(false);
     setSessionCorrect(0);
     setEarnedXP(0);
+    setMissedWords([]);
     setStreak(0);
     setMaxStreak(0);
     setAnswerState("idle");
@@ -88,6 +101,8 @@ export default function TranslatePage() {
     setSelectedOption(optionIndex);
     const correct = optionIndex === current.correctIndex;
     setAnswerState(correct ? "correct" : "wrong");
+
+    if (!correct) setMissedWords((prev) => [...prev, current.word]);
 
     speakWord(current.word.word);
 
@@ -128,6 +143,20 @@ export default function TranslatePage() {
         setDone(true);
       }
     }, 1200);
+  }
+
+  if (!setupDone) {
+    return (
+      <GameTagSetup
+        allWords={allWords}
+        selectedTag={selectedTag}
+        onSelectTag={setSelectedTag}
+        onStart={() => { setSetupDone(true); buildGame(selectedTag); }}
+        title="Translate"
+        icon="🇻🇳"
+        wordFilter={BASE_FILTER}
+      />
+    );
   }
 
   if (loading) {
@@ -182,10 +211,12 @@ export default function TranslatePage() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3">
+          <MissedWords words={missedWords} />
+
+          <div className="flex flex-col gap-3 mt-6">
             {!notEnough && (
               <button
-                onClick={buildGame}
+                onClick={() => buildGame(selectedTag)}
                 className="w-full py-3 font-black uppercase tracking-wider"
                 style={{
                   background: "var(--accent)",
@@ -198,6 +229,19 @@ export default function TranslatePage() {
                 Chơi lại
               </button>
             )}
+            <button
+              onClick={() => { setSetupDone(false); setDone(false); setNotEnough(false); }}
+              className="w-full py-3 font-bold uppercase tracking-wider"
+              style={{
+                background: "var(--surface)",
+                border: "2px solid var(--border)",
+                boxShadow: "2px 2px 0 var(--border)",
+                borderRadius: "4px",
+                color: "var(--muted)",
+              }}
+            >
+              Change tag
+            </button>
             {notEnough && (
               <Link
                 href="/add"
@@ -237,7 +281,6 @@ export default function TranslatePage() {
 
   return (
     <div className="min-h-dvh flex flex-col pb-28" style={{ background: "var(--bg)" }}>
-      {/* Header */}
       <div className="px-4 pt-safe pt-4 pb-2">
         <div className="flex items-center justify-between mb-3">
           <Link
@@ -293,10 +336,8 @@ export default function TranslatePage() {
         </div>
       </div>
 
-      {/* Question */}
       {current && (
         <div className="flex-1 flex flex-col justify-between px-4 py-4">
-          {/* Vietnamese word card */}
           <div
             className={`p-6 mb-6 text-center transition-all duration-300 ${
               answerState === "correct" ? "correct-pulse" : answerState === "wrong" ? "wrong-pulse" : ""
@@ -350,24 +391,16 @@ export default function TranslatePage() {
             )}
           </div>
 
-          {/* Options */}
           <div className="flex flex-col gap-3">
             {current.options.map((opt, i) => {
               let bg = "var(--surface)";
               let textColor = "var(--text)";
-              let border = "2px solid var(--border)";
-              let shadow = "3px 3px 0 var(--border)";
+              const border = "2px solid var(--border)";
+              const shadow = "3px 3px 0 var(--border)";
 
               if (answerState !== "idle") {
-                if (i === current.correctIndex) {
-                  bg = "#2a6040";
-                  textColor = "#f8f3ea";
-                  border = "2px solid var(--border)";
-                } else if (i === selectedOption && i !== current.correctIndex) {
-                  bg = "var(--primary)";
-                  textColor = "#f8f3ea";
-                  border = "2px solid var(--border)";
-                }
+                if (i === current.correctIndex) { bg = "#2a6040"; textColor = "#f8f3ea"; }
+                else if (i === selectedOption && i !== current.correctIndex) { bg = "var(--primary)"; textColor = "#f8f3ea"; }
               }
 
               return (
@@ -381,11 +414,8 @@ export default function TranslatePage() {
                   <span
                     className="inline-flex items-center justify-center w-6 h-6 mr-3 font-black text-xs"
                     style={{
-                      background: answerState !== "idle" && i === current.correctIndex
-                        ? "rgba(248,243,234,0.3)"
-                        : answerState !== "idle" && i === selectedOption
-                        ? "rgba(248,243,234,0.3)"
-                        : "var(--border)",
+                      background: answerState !== "idle" && (i === current.correctIndex || i === selectedOption)
+                        ? "rgba(248,243,234,0.3)" : "var(--border)",
                       color: "#f8f3ea",
                       border: "1px solid var(--border)",
                       borderRadius: "2px",
