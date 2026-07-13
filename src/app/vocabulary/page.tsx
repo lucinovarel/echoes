@@ -220,7 +220,7 @@ export default function VocabularyPage() {
               </button>
             )}
             <label
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-black uppercase tracking-wider cursor-pointer"
+              className="flex items-center justify-center w-8 h-8 cursor-pointer text-sm"
               style={{
                 background: "var(--surface)",
                 border: "2px solid var(--border)",
@@ -228,13 +228,14 @@ export default function VocabularyPage() {
                 borderRadius: "4px",
                 color: "var(--text)",
               }}
+              title="Import"
             >
-              Import
+              📥
               <input type="file" accept=".json" className="hidden" onChange={handleImport} />
             </label>
             <button
               onClick={handleExport}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-black uppercase tracking-wider"
+              className="flex items-center justify-center w-8 h-8 text-sm"
               style={{
                 background: "var(--surface)",
                 border: "2px solid var(--border)",
@@ -242,8 +243,9 @@ export default function VocabularyPage() {
                 borderRadius: "4px",
                 color: "var(--text)",
               }}
+              title="Export"
             >
-              Export
+              📤
             </button>
             <Link
               href="/add"
