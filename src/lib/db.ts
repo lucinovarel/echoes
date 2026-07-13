@@ -57,6 +57,11 @@ export async function deleteWord(id: string): Promise<void> {
   await db.delete("vocab", id);
 }
 
+export async function clearAllWords(): Promise<void> {
+  const db = await getDB();
+  await db.clear("vocab");
+}
+
 export async function getDueWords(): Promise<VocabWord[]> {
   const db = await getDB();
   const now = new Date().toISOString();

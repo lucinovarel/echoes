@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getAllWords, deleteWord, addWords } from "@/lib/db";
+import { getAllWords, deleteWord, addWords, clearAllWords } from "@/lib/db";
 import { getSrsLabel, getSrsColor } from "@/lib/srs";
 import { speakWord } from "@/lib/audio";
 import { VocabWord } from "@/lib/types";
@@ -15,6 +15,7 @@ export default function VocabularyPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [clearConfirm, setClearConfirm] = useState(false);
   const [importStatus, setImportStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   useEffect(() => {
@@ -97,6 +98,12 @@ export default function VocabularyPage() {
     setExpandedId(null);
   }
 
+  async function handleClearAll() {
+    await clearAllWords();
+    setWords([]);
+    setClearConfirm(false);
+  }
+
   const allTags = Array.from(new Set(words.flatMap((w) => w.tags ?? [])));
 
   const filtered = words.filter((w) => {
@@ -135,6 +142,59 @@ export default function VocabularyPage() {
         </div>
       )}
 
+      {/* Clear all confirmation modal */}
+      {clearConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+          <div
+            className="w-full max-w-sm p-6"
+            style={{
+              background: "var(--bg)",
+              border: "2px solid var(--border)",
+              boxShadow: "6px 6px 0 var(--border)",
+              borderRadius: "4px",
+            }}
+          >
+            <div className="text-center">
+              <div className="text-4xl mb-3">⚠️</div>
+              <h2 className="text-lg font-black uppercase tracking-tight mb-2" style={{ color: "var(--text)" }}>
+                Delete All Words?
+              </h2>
+              <p className="text-sm font-medium mb-5" style={{ color: "var(--muted)" }}>
+                This will permanently remove all {words.length} words and their review progress. This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleClearAll}
+                  className="flex-1 py-2.5 text-sm font-black uppercase tracking-wider"
+                  style={{
+                    background: "var(--primary)",
+                    border: "2px solid var(--border)",
+                    boxShadow: "3px 3px 0 var(--border)",
+                    borderRadius: "4px",
+                    color: "#f8f3ea",
+                  }}
+                >
+                  Delete All
+                </button>
+                <button
+                  onClick={() => setClearConfirm(false)}
+                  className="flex-1 py-2.5 text-sm font-bold uppercase tracking-wider"
+                  style={{
+                    background: "var(--surface)",
+                    border: "2px solid var(--border)",
+                    boxShadow: "3px 3px 0 var(--border)",
+                    borderRadius: "4px",
+                    color: "var(--muted)",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="sticky top-0 z-10 px-4 pt-safe pt-4 pb-3" style={{ background: "var(--bg)", borderBottom: "2px solid var(--border)" }}>
         <div className="flex items-center justify-between mb-3">
@@ -145,6 +205,20 @@ export default function VocabularyPage() {
             <span className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
               {words.length} words
             </span>
+            {words.length > 0 && (
+              <button
+                onClick={() => setClearConfirm(true)}
+                className="px-2.5 py-1.5 text-xs font-black uppercase tracking-wider"
+                style={{
+                  background: "transparent",
+                  border: "2px solid var(--primary)",
+                  borderRadius: "4px",
+                  color: "var(--primary)",
+                }}
+              >
+                ✕ All
+              </button>
+            )}
             <label
               className="flex items-center gap-1 px-3 py-1.5 text-xs font-black uppercase tracking-wider cursor-pointer"
               style={{
